@@ -12,3 +12,11 @@
 * Improved performance for use cases that don't require saving PDF to disk
 * Added support for direct PDF bytes manipulation in Android and iOS native implementations
 * Updated example app to demonstrate both file-based and bytes-based conversion
+
+## 1.1.1
+
+* **Fix iOS color and font rendering**: HTML to PDF conversion on iOS now properly renders CSS colors and custom fonts
+* Changed base URL in iOS from `Bundle.main.bundleURL` to `"https://"` to match Android behavior
+* Added PDF context attributes for better color rendering in iOS
+* Configured WKWebView with `isOpaque = false` and clear background for improved CSS support
+* Updated example app with enhanced HTML demonstrating colors and font styles

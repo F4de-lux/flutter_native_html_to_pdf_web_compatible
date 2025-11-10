@@ -92,6 +92,52 @@ print('PDF size: ${pdfBytes?.length} bytes');
 
 The HTML content can be static or dynamic. You can use any valid HTML, including CSS styles and images.
 
+### CSS Styles and Fonts
+
+This plugin fully supports CSS styling in your HTML content on both Android and iOS:
+- **Colors**: Background colors, text colors, border colors
+- **Fonts**: Font families, sizes, weights, and styles (bold, italic, etc.)
+- **Layout**: Margins, padding, borders, positioning
+- **All standard CSS properties**
+
+**Example HTML with CSS:**
+
+```dart
+const htmlContent = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Styled PDF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #ff0000;
+            font-weight: bold;
+        }
+        p {
+            color: #008000;
+            font-size: 16px;
+        }
+        .highlight {
+            background-color: #ffff00;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Red Heading</h1>
+    <p>Green paragraph text.</p>
+    <div class="highlight">
+        <p>Yellow highlighted section.</p>
+    </div>
+</body>
+</html>
+""";
+```
+
 ### Using Images in HTML
 
 This plugin supports loading images in your HTML content, including:
