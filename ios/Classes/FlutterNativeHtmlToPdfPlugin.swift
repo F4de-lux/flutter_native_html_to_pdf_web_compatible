@@ -58,10 +58,17 @@ public class FlutterNativeHtmlToPdfPlugin: NSObject, FlutterPlugin, WKNavigation
         wkWebView.navigationDelegate = self
         wkWebView.isHidden = true
         wkWebView.tag = FlutterNativeHtmlToPdfPlugin.WEBVIEW_TAG_FILE
+        wkWebView.isOpaque = false
+        wkWebView.backgroundColor = UIColor.clear
         viewControler?.view.addSubview(wkWebView)
         
         let htmlFileContent = FileHelper.getContent(from: htmlFilePath!) // get html content from file
-        wkWebView.loadHTMLString(htmlFileContent, baseURL: Bundle.main.bundleURL) // load html into hidden webview
+        // Use a proper base URL to allow CSS and external resources to load correctly
+        if let baseURL = URL(string: "https://") {
+            wkWebView.loadHTMLString(htmlFileContent, baseURL: baseURL)
+        } else {
+            wkWebView.loadHTMLString(htmlFileContent, baseURL: nil)
+        }
     }
     
     private func convertHtmlToPdfBytes(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
@@ -92,9 +99,16 @@ public class FlutterNativeHtmlToPdfPlugin: NSObject, FlutterPlugin, WKNavigation
         wkWebView.navigationDelegate = self
         wkWebView.isHidden = true
         wkWebView.tag = FlutterNativeHtmlToPdfPlugin.WEBVIEW_TAG_BYTES
+        wkWebView.isOpaque = false
+        wkWebView.backgroundColor = UIColor.clear
         viewControler?.view.addSubview(wkWebView)
         
-        wkWebView.loadHTMLString(html!, baseURL: Bundle.main.bundleURL) // load html into hidden webview
+        // Use a proper base URL to allow CSS and external resources to load correctly
+        if let baseURL = URL(string: "https://") {
+            wkWebView.loadHTMLString(html!, baseURL: baseURL)
+        } else {
+            wkWebView.loadHTMLString(html!, baseURL: nil)
+        }
     }
     
     // WKNavigationDelegate method - called when navigation finishes
