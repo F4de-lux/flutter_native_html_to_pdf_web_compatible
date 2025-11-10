@@ -96,7 +96,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> generateExampleDocumentBytes() async {
-    const htmlContent = """
+    final htmlContent = """
    <!DOCTYPE html>
 <html>
 <head>
