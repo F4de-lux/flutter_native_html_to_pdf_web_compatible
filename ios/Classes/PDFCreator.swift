@@ -19,7 +19,12 @@ class PDFCreator {
         
         // create pdf context and draw each page
         let pdfData = NSMutableData()
-        UIGraphicsBeginPDFContextToData(pdfData, .zero, nil)
+        // Add PDF context attributes to ensure proper color rendering
+        let pdfInfo: [String: Any] = [
+            kCGPDFContextTitle as String: "Generated PDF",
+            kCGPDFContextCreator as String: "Flutter Native HTML to PDF"
+        ]
+        UIGraphicsBeginPDFContextToData(pdfData, .zero, pdfInfo)
         
         for i in 0..<renderer.numberOfPages {
             UIGraphicsBeginPDFPage()
@@ -51,7 +56,12 @@ class PDFCreator {
         
         // create pdf context and draw each page
         let pdfData = NSMutableData()
-        UIGraphicsBeginPDFContextToData(pdfData, .zero, nil)
+        // Add PDF context attributes to ensure proper color rendering
+        let pdfInfo: [String: Any] = [
+            kCGPDFContextTitle as String: "Generated PDF",
+            kCGPDFContextCreator as String: "Flutter Native HTML to PDF"
+        ]
+        UIGraphicsBeginPDFContextToData(pdfData, .zero, pdfInfo)
         
         for i in 0..<renderer.numberOfPages {
             UIGraphicsBeginPDFPage()

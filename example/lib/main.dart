@@ -37,10 +37,48 @@ class _MyAppState extends State<MyApp> {
 <html>
 <head>
     <title>Sample HTML Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #ff0000;
+            font-weight: bold;
+            font-size: 24px;
+        }
+        h2 {
+            color: #0000ff;
+            font-style: italic;
+        }
+        p {
+            color: #008000;
+            font-size: 16px;
+        }
+        .highlight {
+            background-color: #ffff00;
+            padding: 10px;
+            color: #000000;
+        }
+        .box {
+            border: 2px solid #ff00ff;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #e0e0ff;
+        }
+    </style>
 </head>
 <body>
     <h1>Welcome to My Website!</h1>
-    <p>This is a sample paragraph text.</p>
+    <h2>Testing Colors and Fonts on iOS</h2>
+    <p>This is a sample paragraph text with green color.</p>
+    <div class="highlight">
+        <p>This is highlighted text with yellow background.</p>
+    </div>
+    <div class="box">
+        <p>This is a box with purple border and light blue background.</p>
+    </div>
     <img src="https://picsum.photos/200/300" alt="Description of the image">
 </body>
 </html>
@@ -98,11 +136,39 @@ class _MyAppState extends State<MyApp> {
 <html>
 <head>
     <title>Sample HTML Page - Bytes</title>
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            margin: 20px;
+            background-color: #ffffff;
+        }
+        h1 {
+            color: #ff6600;
+            font-weight: bold;
+            font-size: 28px;
+            text-decoration: underline;
+        }
+        p {
+            color: #333333;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .info-box {
+            background-color: #cce5ff;
+            border-left: 4px solid #0066cc;
+            padding: 12px;
+            margin: 15px 0;
+        }
+    </style>
 </head>
 <body>
     <h1>PDF Generated from Bytes!</h1>
     <p>This PDF was generated directly to Uint8List without saving to a file first.</p>
-    <p>This is more performant for scenarios where you don't need to save the file locally.</p>
+    <div class="info-box">
+        <p>This is more performant for scenarios where you don't need to save the file locally.</p>
+    </div>
+    <p style="color: #cc0000; font-weight: bold;">This text is red and bold with inline styling.</p>
+    <p style="color: #00cc00; font-style: italic;">This text is green and italic.</p>
 </body>
 </html>
     """;
