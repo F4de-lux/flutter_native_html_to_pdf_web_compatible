@@ -288,9 +288,8 @@ class _MyAppState extends State<MyApp> {
                       );
                       
                       print('Sharing PDF file: $generatedPdfFilePath');
-                      await Share.shareXFiles(
-                        [XFile(generatedPdfFilePath!)],
-                        text: 'This is pdf file with ${selectedPageSize.name} size',
+                      final result = await Share.shareUri(
+                        Uri.file(generatedPdfFilePath!),
                         sharePositionOrigin: Rect.fromLTWH(
                           0,
                           0,
@@ -298,7 +297,7 @@ class _MyAppState extends State<MyApp> {
                           MediaQuery.of(context).size.height / 2,
                         ),
                       );
-                      print('Share completed');
+                      print('Share completed with status: ${result.status}');
                     } else {
                       print('ERROR: Failed to generate PDF file');
                       Fluttertoast.showToast(
@@ -350,9 +349,8 @@ class _MyAppState extends State<MyApp> {
                       await tempFile.writeAsBytes(generatedPdfBytes!);
                       print('Temp file created at: ${tempFile.path}');
                       
-                      await Share.shareXFiles(
-                        [XFile(tempFile.path)],
-                        text: 'This PDF was generated from bytes with ${selectedPageSize.name} size!',
+                      final result = await Share.shareUri(
+                        Uri.file(tempFile.path),
                         sharePositionOrigin: Rect.fromLTWH(
                           0,
                           0,
@@ -360,7 +358,7 @@ class _MyAppState extends State<MyApp> {
                           MediaQuery.of(context).size.height / 2,
                         ),
                       );
-                      print('Share completed');
+                      print('Share completed with status: ${result.status}');
                     } else {
                       print('ERROR: Still no PDF bytes after regeneration');
                       Fluttertoast.showToast(
