@@ -291,6 +291,12 @@ class _MyAppState extends State<MyApp> {
                       await Share.shareXFiles(
                         [XFile(generatedPdfFilePath!)],
                         text: 'This is pdf file with ${selectedPageSize.name} size',
+                        sharePositionOrigin: Rect.fromLTWH(
+                          0,
+                          0,
+                          MediaQuery.of(context).size.width,
+                          MediaQuery.of(context).size.height / 2,
+                        ),
                       );
                       print('Share completed');
                     } else {
@@ -347,6 +353,12 @@ class _MyAppState extends State<MyApp> {
                       await Share.shareXFiles(
                         [XFile(tempFile.path)],
                         text: 'This PDF was generated from bytes with ${selectedPageSize.name} size!',
+                        sharePositionOrigin: Rect.fromLTWH(
+                          0,
+                          0,
+                          MediaQuery.of(context).size.width,
+                          MediaQuery.of(context).size.height / 2,
+                        ),
                       );
                       print('Share completed');
                     } else {
