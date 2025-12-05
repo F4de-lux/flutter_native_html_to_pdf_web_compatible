@@ -100,9 +100,6 @@ class MethodChannelFlutterNativeHtmlToPdf
       args['pageSize'] = pageSize.toMap();
     }
     final result = await methodChannel.invokeMethod('convertHtmlToPdfBytes', args);
-    if (result == null) {
-      return null;
-    }
-    return result as Uint8List;
+    return result as Uint8List?;
   }
 }
