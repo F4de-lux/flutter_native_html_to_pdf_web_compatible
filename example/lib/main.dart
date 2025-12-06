@@ -96,7 +96,6 @@ class _MyAppState extends State<MyApp> {
         textColor: Colors.white,
       );
       
-      print('Starting PDF file generation with page size: ${selectedPageSize.name}');
       Directory appDocDir = await getApplicationDocumentsDirectory();
       final targetPath = appDocDir.path;
       const targetFileName = "mytext";
@@ -109,7 +108,6 @@ class _MyAppState extends State<MyApp> {
       );
 
       generatedPdfFilePath = generatedPdfFile?.path;
-      print('PDF file generated: $generatedPdfFilePath');
       
       // Show success toast
       Fluttertoast.showToast(
@@ -120,7 +118,6 @@ class _MyAppState extends State<MyApp> {
         textColor: Colors.white,
       );
     } catch (e) {
-      print('Error generating PDF file: $e');
       
       // Show error toast
       Fluttertoast.showToast(
@@ -183,15 +180,12 @@ class _MyAppState extends State<MyApp> {
         textColor: Colors.white,
       );
       
-      print('Starting PDF bytes generation with page size: ${selectedPageSize.name}');
       final pdfBytes =
           await _flutterNativeHtmlToPdfPlugin.convertHtmlToPdfBytes(
         html: htmlContent,
         pageSize: selectedPageSize,
       );
 
-      print('PDF bytes generated: ${pdfBytes?.length ?? 0} bytes');
-      
       setState(() {
         generatedPdfBytes = pdfBytes;
       });
@@ -207,7 +201,6 @@ class _MyAppState extends State<MyApp> {
         );
       }
     } catch (e) {
-      print('Error generating PDF bytes: $e');
       setState(() {
         generatedPdfBytes = null;
       });
@@ -271,7 +264,6 @@ class _MyAppState extends State<MyApp> {
                 child: const Text("Share PDF (from file)"),
                 onPressed: () async {
                   try {
-                    print('Generating PDF file...');
                     
                     // Generate if not already generated
                     if (generatedPdfFilePath == null) {
@@ -287,13 +279,10 @@ class _MyAppState extends State<MyApp> {
                         textColor: Colors.white,
                       );
                       
-                      print('Sharing PDF file: $generatedPdfFilePath');
-                      final result = await SharePlus.instance.share(ShareParams(
+                      await SharePlus.instance.share(ShareParams(
                         uri: Uri.file(generatedPdfFilePath!),
                       ));
-                      print('Share completed with status: ${result.status}');
                     } else {
-                      print('ERROR: Failed to generate PDF file');
                       Fluttertoast.showToast(
                         msg: "ERROR: Failed to generate PDF file",
                         toastLength: Toast.LENGTH_SHORT,
@@ -302,9 +291,7 @@ class _MyAppState extends State<MyApp> {
                         textColor: Colors.white,
                       );
                     }
-                  } catch (e, stackTrace) {
-                    print('Error with PDF file: $e');
-                    print('Stack trace: $stackTrace');
+                  } catch (e) {
                     Fluttertoast.showToast(
                       msg: "Error sharing PDF: $e",
                       toastLength: Toast.LENGTH_SHORT,
@@ -320,10 +307,8 @@ class _MyAppState extends State<MyApp> {
                 child: const Text("Share PDF (from bytes)"),
                 onPressed: () async {
                   try {
-                    print('Share button pressed. generatedPdfBytes: ${generatedPdfBytes?.length ?? "null"}');
                     
                     if (generatedPdfBytes == null) {
-                      print('PDF bytes are null, regenerating...');
                       await generateExampleDocumentBytes();
                     }
                     
@@ -336,18 +321,14 @@ class _MyAppState extends State<MyApp> {
                         textColor: Colors.white,
                       );
                       
-                      print('Creating temp file from ${generatedPdfBytes!.length} bytes');
                       // Save bytes to temporary file for sharing
                       final tempDir = await getTemporaryDirectory();
                       final tempFile = File('${tempDir.path}/temp_pdf_from_bytes.pdf');
                       await tempFile.writeAsBytes(generatedPdfBytes!);
-                      print('Temp file created at: ${tempFile.path}');
-                      final result = await SharePlus.instance.share(ShareParams(
+                      await SharePlus.instance.share(ShareParams(
                         uri: Uri.file(tempFile.path),
                       ));
-                      print('Share completed with status: ${result.status}');
                     } else {
-                      print('ERROR: Still no PDF bytes after regeneration');
                       Fluttertoast.showToast(
                         msg: "ERROR: Still no PDF bytes after regeneration",
                         toastLength: Toast.LENGTH_SHORT,
@@ -356,9 +337,7 @@ class _MyAppState extends State<MyApp> {
                         textColor: Colors.white,
                       );
                     }
-                  } catch (e, stackTrace) {
-                    print('Error sharing PDF: $e');
-                    print('Stack trace: $stackTrace');
+                  } catch (e) {
                     Fluttertoast.showToast(
                       msg: "Error sharing PDF: $e",
                       toastLength: Toast.LENGTH_SHORT,
