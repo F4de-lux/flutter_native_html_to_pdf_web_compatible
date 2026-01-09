@@ -18,6 +18,31 @@ public class FlutterNativeHtmlToPdfPlugin: NSObject, FlutterPlugin, WKNavigation
     let instance = FlutterNativeHtmlToPdfPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
   }
+    
+    /// Gets the root view controller using the modern scene-based approach (iOS 13+)
+    /// with fallback to the legacy window approach for older iOS versions
+    private func getRootViewController() -> UIViewController? {
+        // iOS 13+ with UISceneDelegate support
+        if #available(iOS 13.0, *) {
+            // Try to get the key window from connected scenes
+            let windowScene = UIApplication.shared.connectedScenes
+                .filter { $0.activationState == .foregroundActive }
+                .compactMap { $0 as? UIWindowScene }
+                .first
+            
+            if let keyWindow = windowScene?.windows.first(where: { $0.isKeyWindow }) {
+                return keyWindow.rootViewController
+            }
+            
+            // Fallback: try any window from the active scene
+            if let window = windowScene?.windows.first {
+                return window.rootViewController
+            }
+        }
+        
+        // Legacy fallback for iOS 12 and earlier, or when scene is not available
+        return UIApplication.shared.delegate?.window??.rootViewController
+    }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
        switch call.method {
@@ -47,20 +72,24 @@ public class FlutterNativeHtmlToPdfPlugin: NSObject, FlutterPlugin, WKNavigation
         isGeneratingBytes = false
         isProcessing = true
         
-        // !!! this is workaround for issue with rendering PDF images on iOS !!!
-        let viewControler = UIApplication.shared.delegate?.window?!.rootViewController
+        // Get the root view controller using scene-based approach (iOS 13+) with legacy fallback
+        guard let viewControler = getRootViewController() else {
+            result(FlutterError(code: "NO_VIEW_CONTROLLER", message: "Unable to get root view controller", details: nil))
+            isProcessing = false
+            return
+        }
         
         // Create WebView configuration with settings for loading external resources
         let configuration = WKWebViewConfiguration()
         configuration.preferences.javaScriptEnabled = true
         
-        wkWebView = WKWebView.init(frame: viewControler!.view.bounds, configuration: configuration)
+        wkWebView = WKWebView.init(frame: viewControler.view.bounds, configuration: configuration)
         wkWebView.navigationDelegate = self
         wkWebView.isHidden = true
         wkWebView.tag = FlutterNativeHtmlToPdfPlugin.WEBVIEW_TAG_FILE
         wkWebView.isOpaque = false
         wkWebView.backgroundColor = UIColor.clear
-        viewControler?.view.addSubview(wkWebView)
+        viewControler.view.addSubview(wkWebView)
         
         let htmlFileContent = FileHelper.getContent(from: htmlFilePath!) // get html content from file
         // Use a proper base URL to allow CSS and external resources to load correctly
@@ -88,20 +117,24 @@ public class FlutterNativeHtmlToPdfPlugin: NSObject, FlutterPlugin, WKNavigation
         isGeneratingBytes = true
         isProcessing = true
         
-        // !!! this is workaround for issue with rendering PDF images on iOS !!!
-        let viewControler = UIApplication.shared.delegate?.window?!.rootViewController
+        // Get the root view controller using scene-based approach (iOS 13+) with legacy fallback
+        guard let viewControler = getRootViewController() else {
+            result(FlutterError(code: "NO_VIEW_CONTROLLER", message: "Unable to get root view controller", details: nil))
+            isProcessing = false
+            return
+        }
         
         // Create WebView configuration with settings for loading external resources
         let configuration = WKWebViewConfiguration()
         configuration.preferences.javaScriptEnabled = true
         
-        wkWebView = WKWebView.init(frame: viewControler!.view.bounds, configuration: configuration)
+        wkWebView = WKWebView.init(frame: viewControler.view.bounds, configuration: configuration)
         wkWebView.navigationDelegate = self
         wkWebView.isHidden = true
         wkWebView.tag = FlutterNativeHtmlToPdfPlugin.WEBVIEW_TAG_BYTES
         wkWebView.isOpaque = false
         wkWebView.backgroundColor = UIColor.clear
-        viewControler?.view.addSubview(wkWebView)
+        viewControler.view.addSubview(wkWebView)
         
         // Use a proper base URL to allow CSS and external resources to load correctly
         if let baseURL = URL(string: "https://") {
@@ -179,7 +212,7 @@ public class FlutterNativeHtmlToPdfPlugin: NSObject, FlutterPlugin, WKNavigation
     
     private func handleNavigationError(_ error: Error) {
         // Clean up
-        if let viewControler = UIApplication.shared.delegate?.window?!.rootViewController {
+        if let viewControler = getRootViewController() {
             let tag = isGeneratingBytes ? FlutterNativeHtmlToPdfPlugin.WEBVIEW_TAG_BYTES : FlutterNativeHtmlToPdfPlugin.WEBVIEW_TAG_FILE
             if let viewWithTag = viewControler.view.viewWithTag(tag) {
                 viewWithTag.removeFromSuperview()
@@ -198,7 +231,7 @@ public class FlutterNativeHtmlToPdfPlugin: NSObject, FlutterPlugin, WKNavigation
     }
     
     private func generatePdfBytes() {
-        guard let viewControler = UIApplication.shared.delegate?.window?!.rootViewController else {
+        guard let viewControler = getRootViewController() else {
             isProcessing = false
             return
         }
@@ -243,7 +276,7 @@ public class FlutterNativeHtmlToPdfPlugin: NSObject, FlutterPlugin, WKNavigation
     }
     
     private func generatePdfFile() {
-        guard let viewControler = UIApplication.shared.delegate?.window?!.rootViewController else {
+        guard let viewControler = getRootViewController() else {
             isProcessing = false
             return
         }
