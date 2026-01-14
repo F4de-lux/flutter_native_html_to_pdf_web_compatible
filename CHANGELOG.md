@@ -1,3 +1,7 @@
+## 1.1.6
+* Refactor iOS code to support scene-based root view controller retrieval and update Info.plist for scene configuration
+* Enhance PDF sharing functionality with improved metadata and file handling
+
 ## 1.1.5
 * Refactor code for improved readability by removing unnecessary blank lines and formatting adjustments across multiple files
 
