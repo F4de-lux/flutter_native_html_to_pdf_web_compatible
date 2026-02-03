@@ -300,57 +300,81 @@ class HtmlParser {
     final style = _getComputedStyle(element, parentStyle);
     final tagName = element.localName?.toLowerCase() ?? '';
 
+    pw.Widget? widget;
+
     switch (tagName) {
       case 'h1':
-        return _buildHeading(element, style, 24);
+        widget = _buildHeading(element, style, 24);
+        break;
       case 'h2':
-        return _buildHeading(element, style, 20);
+        widget = _buildHeading(element, style, 20);
+        break;
       case 'h3':
-        return _buildHeading(element, style, 18);
+        widget = _buildHeading(element, style, 18);
+        break;
       case 'h4':
-        return _buildHeading(element, style, 16);
+        widget = _buildHeading(element, style, 16);
+        break;
       case 'h5':
-        return _buildHeading(element, style, 14);
+        widget = _buildHeading(element, style, 14);
+        break;
       case 'h6':
-        return _buildHeading(element, style, 12);
+        widget = _buildHeading(element, style, 12);
+        break;
       case 'p':
-        return await _buildParagraph(element, style);
+        widget = await _buildParagraph(element, style);
+        break;
       case 'div':
-        return await _buildDiv(element, style);
+        widget = await _buildDiv(element, style);
+        break;
       case 'span':
-        return await _buildSpan(element, style);
+        widget = await _buildSpan(element, style);
+        break;
       case 'strong':
       case 'b':
         style.fontWeight = pw.FontWeight.bold;
-        return await _buildInlineText(element, style);
+        widget = await _buildInlineText(element, style);
+        break;
       case 'em':
       case 'i':
         style.fontStyle = pw.FontStyle.italic;
-        return await _buildInlineText(element, style);
+        widget = await _buildInlineText(element, style);
+        break;
       case 'u':
         style.textDecoration = pw.TextDecoration.underline;
-        return await _buildInlineText(element, style);
+        widget = await _buildInlineText(element, style);
+        break;
       case 'br':
-        return pw.SizedBox(height: 10);
+        widget = pw.SizedBox(height: 10);
+        break;
       case 'hr':
-        return pw.Divider();
+        widget = pw.Divider();
+        break;
       case 'ul':
-        return await _buildUnorderedList(element, style);
+        widget = await _buildUnorderedList(element, style);
+        break;
       case 'ol':
-        return await _buildOrderedList(element, style);
+        widget = await _buildOrderedList(element, style);
+        break;
       case 'li':
-        return await _buildListItem(element, style);
+        widget = await _buildListItem(element, style);
+        break;
       case 'a':
-        return await _buildLink(element, style);
+        widget = await _buildLink(element, style);
+        break;
       case 'img':
-        return await _buildImage(element);
+        widget = await _buildImage(element);
+        break;
       case 'table':
-        return await _buildTable(element, style);
+        widget = await _buildTable(element, style);
+        break;
       case 'blockquote':
-        return await _buildBlockquote(element, style);
+        widget = await _buildBlockquote(element, style);
+        break;
       case 'pre':
       case 'code':
-        return await _buildCode(element, style);
+        widget = await _buildCode(element, style);
+        break;
       case 'head':
       case 'style':
       case 'script':
@@ -370,34 +394,47 @@ class HtmlParser {
         if (bodyMargin != null ||
             bodyPadding != null ||
             style.backgroundColor != null) {
-          return pw.Container(
+          widget = pw.Container(
             padding: bodyMargin ?? bodyPadding,
             decoration: style.backgroundColor != null
                 ? pw.BoxDecoration(color: style.backgroundColor)
                 : null,
             child: bodyContent,
           );
+        } else {
+          widget = bodyContent;
         }
-        return bodyContent;
+        break;
       case 'html':
         final children = await _parseNodes(element.nodes, style);
-        return pw.Column(
+        widget = pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: children,
         );
+        break;
       default:
         if (element.nodes.isNotEmpty) {
           final children = await _parseNodes(element.nodes, style);
-          if (children.length == 1) return children.first;
-          if (children.isNotEmpty) {
-            return pw.Column(
+          if (children.length == 1) {
+            widget = children.first;
+          } else if (children.isNotEmpty) {
+            widget = pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: children,
             );
           }
         }
-        return null;
+        break;
     }
+
+    if (widget != null) {
+      final id = element.attributes['id'];
+      if (id != null && id.isNotEmpty) {
+        return pw.Anchor(name: id, child: widget);
+      }
+    }
+
+    return widget;
   }
 
   pw.Widget _buildHeading(
@@ -558,6 +595,14 @@ class HtmlParser {
     final href = element.attributes['href'] ?? '';
     style.color ??= PdfColors.blue;
     style.textDecoration = pw.TextDecoration.underline;
+
+    if (href.startsWith('#')) {
+      final destination = href.substring(1);
+      return pw.Link(
+        destination: destination,
+        child: pw.Text(element.text.trim(), style: style.toTextStyle()),
+      );
+    }
 
     return pw.UrlLink(
       destination: href,
