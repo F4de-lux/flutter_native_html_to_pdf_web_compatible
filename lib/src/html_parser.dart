@@ -59,37 +59,75 @@ class HtmlParser {
 
     // Get body styles
     final bodyStyle = _getComputedStyle(body, CssStyle());
-    final bodyMargin = bodyStyle.getEffectiveMargin();
+    var bodyMargin = bodyStyle.getEffectiveMargin();
     final bodyPadding = bodyStyle.getEffectivePadding();
     PdfColor? bodyBackgroundColor = bodyStyle.backgroundColor;
 
-    // Parse body children
-    var widgets = await _parseBodyContent(body, bodyStyle);
+    // FIX FOR PAGINATION:
+    // The pdf package's MultiPage can only paginate items in the widget list.
+    // It CANNOT look inside a Column and split its children across pages.
+    // Common HTML pattern: <body><div class="wrapper">...content...</div></body>
+    // If we wrap all content in a single Container/Column, MultiPage treats it as ONE widget
+    // and can't paginate properly.
+    //
+    // Solution: Detect wrapper div pattern and flatten it - return wrapper's children
+    // as individual widgets so MultiPage can paginate each one.
 
-    // FIX: Check for root-level container with background color.
-    // If we have a single wrapper div with a background color, the pdf package's Container
-    // will refuse to split it across pages.
-    // We fix this by promoting the background color to the page level and unwrapping the container.
-    if (widgets.length == 1) {
-      final widget = widgets.first;
-      if (widget is pw.Container && widget.decoration is pw.BoxDecoration) {
-        final decoration = widget.decoration as pw.BoxDecoration;
-        // If container has background color and body doesn't
-        if (decoration.color != null && bodyBackgroundColor == null) {
-          bodyBackgroundColor = decoration.color;
+    // Get direct element children of body (skip text nodes for this check)
+    final directChildren =
+        body.children.where((e) => e.localName != null).toList();
 
-          // If container has padding, we must preserve it using a Padding widget.
-          // Padding widgets split fine across pages.
-          if (widget.padding != null) {
-            widgets = [
-              pw.Padding(padding: widget.padding!, child: widget.child)
-            ];
-          } else {
-            widgets = widget.child != null ? [widget.child!] : [];
-          }
-        }
+    // Check for single wrapper div pattern
+    if (directChildren.length == 1 &&
+        directChildren.first.localName?.toLowerCase() == 'div') {
+      final wrapperDiv = directChildren.first;
+      final wrapperStyle = _getComputedStyle(wrapperDiv, bodyStyle);
+
+      // Promote wrapper's background color to page level
+      if (wrapperStyle.backgroundColor != null) {
+        bodyBackgroundColor = wrapperStyle.backgroundColor;
       }
+
+      // Combine wrapper's padding/margin with body margin for page margin
+      final wrapperPadding = wrapperStyle.getEffectivePadding();
+      final wrapperMargin = wrapperStyle.getEffectiveMargin();
+
+      if (wrapperPadding != null || wrapperMargin != null) {
+        final combinedTop = (bodyMargin?.top ?? 0) +
+            (wrapperMargin?.top ?? 0) +
+            (wrapperPadding?.top ?? 0);
+        final combinedRight = (bodyMargin?.right ?? 0) +
+            (wrapperMargin?.right ?? 0) +
+            (wrapperPadding?.right ?? 0);
+        final combinedBottom = (bodyMargin?.bottom ?? 0) +
+            (wrapperMargin?.bottom ?? 0) +
+            (wrapperPadding?.bottom ?? 0);
+        final combinedLeft = (bodyMargin?.left ?? 0) +
+            (wrapperMargin?.left ?? 0) +
+            (wrapperPadding?.left ?? 0);
+
+        bodyMargin = pw.EdgeInsets.only(
+          top: combinedTop,
+          right: combinedRight,
+          bottom: combinedBottom,
+          left: combinedLeft,
+        );
+      }
+
+      // Parse wrapper's children as individual widgets (FLAT list, no Column wrapper)
+      // This allows MultiPage to paginate each child individually
+      final widgets = await _parseNodes(wrapperDiv.nodes, wrapperStyle);
+
+      return HtmlParseResult(
+        widgets: widgets,
+        bodyMargin: bodyMargin,
+        bodyPadding: bodyPadding,
+        bodyBackgroundColor: bodyBackgroundColor,
+      );
     }
+
+    // Standard case: no wrapper div, parse body children normally
+    final widgets = await _parseBodyContent(body, bodyStyle);
 
     return HtmlParseResult(
       widgets: widgets,
