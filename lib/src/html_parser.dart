@@ -70,64 +70,29 @@ class HtmlParser {
     // If we wrap all content in a single Container/Column, MultiPage treats it as ONE widget
     // and can't paginate properly.
     //
-    // Solution: Detect wrapper div pattern and flatten it - return wrapper's children
+    // Solution: Detect wrapper divs and flatten them - return their children
     // as individual widgets so MultiPage can paginate each one.
 
-    // Get direct element children of body (skip text nodes for this check)
-    final directChildren =
-        body.children.where((e) => e.localName != null).toList();
-
-    // Check for single wrapper div pattern
-    if (directChildren.length == 1 &&
-        directChildren.first.localName?.toLowerCase() == 'div') {
-      final wrapperDiv = directChildren.first;
-      final wrapperStyle = _getComputedStyle(wrapperDiv, bodyStyle);
-
-      // Promote wrapper's background color to page level
-      if (wrapperStyle.backgroundColor != null) {
-        bodyBackgroundColor = wrapperStyle.backgroundColor;
-      }
-
-      // Combine wrapper's padding/margin with body margin for page margin
-      final wrapperPadding = wrapperStyle.getEffectivePadding();
-      final wrapperMargin = wrapperStyle.getEffectiveMargin();
-
-      if (wrapperPadding != null || wrapperMargin != null) {
-        final combinedTop = (bodyMargin?.top ?? 0) +
-            (wrapperMargin?.top ?? 0) +
-            (wrapperPadding?.top ?? 0);
-        final combinedRight = (bodyMargin?.right ?? 0) +
-            (wrapperMargin?.right ?? 0) +
-            (wrapperPadding?.right ?? 0);
-        final combinedBottom = (bodyMargin?.bottom ?? 0) +
-            (wrapperMargin?.bottom ?? 0) +
-            (wrapperPadding?.bottom ?? 0);
-        final combinedLeft = (bodyMargin?.left ?? 0) +
-            (wrapperMargin?.left ?? 0) +
-            (wrapperPadding?.left ?? 0);
-
-        bodyMargin = pw.EdgeInsets.only(
-          top: combinedTop,
-          right: combinedRight,
-          bottom: combinedBottom,
-          left: combinedLeft,
-        );
-      }
-
-      // Parse wrapper's children as individual widgets (FLAT list, no Column wrapper)
-      // This allows MultiPage to paginate each child individually
-      final widgets = await _parseNodes(wrapperDiv.nodes, wrapperStyle);
-
-      return HtmlParseResult(
-        widgets: widgets,
-        bodyMargin: bodyMargin,
-        bodyPadding: bodyPadding,
-        bodyBackgroundColor: bodyBackgroundColor,
-      );
-    }
-
-    // Standard case: no wrapper div, parse body children normally
-    final widgets = await _parseBodyContent(body, bodyStyle);
+    // Parse body children with special handling for wrapper divs
+    final widgets = await _parseBodyContentFlattened(
+      body,
+      bodyStyle,
+      (color) {
+        if (bodyBackgroundColor == null && color != null) {
+          bodyBackgroundColor = color;
+        }
+      },
+      (margin) {
+        if (margin != null) {
+          bodyMargin = pw.EdgeInsets.only(
+            top: (bodyMargin?.top ?? 0) + margin.top,
+            right: (bodyMargin?.right ?? 0) + margin.right,
+            bottom: (bodyMargin?.bottom ?? 0) + margin.bottom,
+            left: (bodyMargin?.left ?? 0) + margin.left,
+          );
+        }
+      },
+    );
 
     return HtmlParseResult(
       widgets: widgets,
@@ -137,16 +102,54 @@ class HtmlParser {
     );
   }
 
-  /// Parses body content (children only, without body element wrapper).
-  Future<List<pw.Widget>> _parseBodyContent(
-      dom.Element body, CssStyle bodyStyle) async {
+  /// Parses body content with special handling for wrapper divs.
+  /// Wrapper divs (divs with many children that act as containers) are flattened
+  /// so their children become individual widgets for proper MultiPage pagination.
+  Future<List<pw.Widget>> _parseBodyContentFlattened(
+    dom.Element body,
+    CssStyle bodyStyle,
+    void Function(PdfColor?) onBackgroundColor,
+    void Function(pw.EdgeInsets?) onMarginPadding,
+  ) async {
     final List<pw.Widget> widgets = [];
 
     for (final node in body.nodes) {
       if (node is dom.Element) {
-        final widget = await _parseElement(node, bodyStyle);
-        if (widget != null) {
-          widgets.add(widget);
+        final tagName = node.localName?.toLowerCase() ?? '';
+
+        // Check if this is a wrapper div that should be flattened
+        // A wrapper div is a div with multiple children (like a chat container)
+        if (tagName == 'div' && node.children.length > 1) {
+          final divStyle = _getComputedStyle(node, bodyStyle);
+
+          // Promote background color to page level
+          if (divStyle.backgroundColor != null) {
+            onBackgroundColor(divStyle.backgroundColor);
+          }
+
+          // Promote padding/margin to page level
+          final divPadding = divStyle.getEffectivePadding();
+          final divMargin = divStyle.getEffectiveMargin();
+          if (divPadding != null || divMargin != null) {
+            final combined = pw.EdgeInsets.only(
+              top: (divMargin?.top ?? 0) + (divPadding?.top ?? 0),
+              right: (divMargin?.right ?? 0) + (divPadding?.right ?? 0),
+              bottom: (divMargin?.bottom ?? 0) + (divPadding?.bottom ?? 0),
+              left: (divMargin?.left ?? 0) + (divPadding?.left ?? 0),
+            );
+            onMarginPadding(combined);
+          }
+
+          // Parse this div's children as individual widgets (flatten)
+          // This is the key fix: instead of wrapping in Column, add each child separately
+          final childWidgets = await _parseNodes(node.nodes, divStyle);
+          widgets.addAll(childWidgets);
+        } else {
+          // Regular element - parse normally
+          final widget = await _parseElement(node, bodyStyle);
+          if (widget != null) {
+            widgets.add(widget);
+          }
         }
       } else if (node is dom.Text) {
         final text = node.text.trim();
