@@ -63,36 +63,63 @@ class HtmlParser {
     final bodyPadding = bodyStyle.getEffectivePadding();
     PdfColor? bodyBackgroundColor = bodyStyle.backgroundColor;
 
-    // FIX FOR PAGINATION:
-    // The pdf package's MultiPage can only paginate items in the widget list.
-    // It CANNOT look inside a Column and split its children across pages.
-    // Common HTML pattern: <body><div class="wrapper">...content...</div></body>
-    // If we wrap all content in a single Container/Column, MultiPage treats it as ONE widget
-    // and can't paginate properly.
-    //
-    // Solution: Detect wrapper divs and flatten them - return their children
-    // as individual widgets so MultiPage can paginate each one.
+    // Get direct element children of body
+    final bodyElements = body.children;
 
-    // Parse body children with special handling for wrapper divs
-    final widgets = await _parseBodyContentFlattened(
-      body,
-      bodyStyle,
-      (color) {
-        if (bodyBackgroundColor == null && color != null) {
-          bodyBackgroundColor = color;
-        }
-      },
-      (margin) {
-        if (margin != null) {
+    // Check if the first child is a wrapper div with a background color.
+    // If so, we need to handle it specially for pagination to work.
+    // The pdf package's Container with BoxDecoration cannot split across pages,
+    // so wrapping all content in a single Container breaks pagination.
+    // Solution: Extract wrapper's children, promote background to page level.
+    if (bodyElements.isNotEmpty &&
+        bodyElements.first.localName?.toLowerCase() == 'div') {
+      final firstDiv = bodyElements.first;
+      final firstDivStyle = _getComputedStyle(firstDiv, bodyStyle);
+
+      // Check if this div has a background color (indicates it's a styled wrapper)
+      if (firstDivStyle.backgroundColor != null) {
+        // Promote background color to page level
+        bodyBackgroundColor = firstDivStyle.backgroundColor;
+
+        // Add wrapper's padding to page margin
+        final wrapperPadding = firstDivStyle.getEffectivePadding();
+        if (wrapperPadding != null) {
           bodyMargin = pw.EdgeInsets.only(
-            top: (bodyMargin?.top ?? 0) + margin.top,
-            right: (bodyMargin?.right ?? 0) + margin.right,
-            bottom: (bodyMargin?.bottom ?? 0) + margin.bottom,
-            left: (bodyMargin?.left ?? 0) + margin.left,
+            top: (bodyMargin?.top ?? 0) + wrapperPadding.top,
+            right: (bodyMargin?.right ?? 0) + wrapperPadding.right,
+            bottom: (bodyMargin?.bottom ?? 0) + wrapperPadding.bottom,
+            left: (bodyMargin?.left ?? 0) + wrapperPadding.left,
           );
         }
-      },
-    );
+
+        // Parse wrapper's children directly (without wrapping in Container)
+        final List<pw.Widget> widgets = [];
+        for (final child in firstDiv.children) {
+          final widget = await _parseElement(child, firstDivStyle);
+          if (widget != null) {
+            widgets.add(widget);
+          }
+        }
+
+        // Parse remaining body elements normally
+        for (int i = 1; i < bodyElements.length; i++) {
+          final widget = await _parseElement(bodyElements[i], bodyStyle);
+          if (widget != null) {
+            widgets.add(widget);
+          }
+        }
+
+        return HtmlParseResult(
+          widgets: widgets,
+          bodyMargin: bodyMargin,
+          bodyPadding: bodyPadding,
+          bodyBackgroundColor: bodyBackgroundColor,
+        );
+      }
+    }
+
+    // Standard case: parse body children normally
+    final widgets = await _parseBodyContent(body, bodyStyle);
 
     return HtmlParseResult(
       widgets: widgets,
@@ -102,84 +129,22 @@ class HtmlParser {
     );
   }
 
-  /// Parses body content with special handling for wrapper divs.
-  /// The FIRST wrapper div (div with many children) is flattened so its children
-  /// become individual widgets for proper MultiPage pagination.
-  /// Other elements are parsed normally.
-  Future<List<pw.Widget>> _parseBodyContentFlattened(
-    dom.Element body,
-    CssStyle bodyStyle,
-    void Function(PdfColor?) onBackgroundColor,
-    void Function(pw.EdgeInsets?) onMarginPadding,
-  ) async {
+  /// Parses body content (children only, without body element wrapper).
+  Future<List<pw.Widget>> _parseBodyContent(
+      dom.Element body, CssStyle bodyStyle) async {
     final List<pw.Widget> widgets = [];
-    bool hasFlattened = false; // Only flatten the first wrapper
 
     for (final node in body.nodes) {
       if (node is dom.Element) {
-        final tagName = node.localName?.toLowerCase() ?? '';
-
-        // Check if this is a wrapper div that should be flattened
-        // Only flatten the FIRST wrapper div (typically the main content container)
-        // A wrapper div is a div with many children (like a chat container with messages)
-        if (!hasFlattened && tagName == 'div' && node.children.length >= 3) {
-          // 3+ children suggests it's a container of multiple items
-          hasFlattened = true;
-          final divStyle = _getComputedStyle(node, bodyStyle);
-
-          // Promote background color to page level
-          if (divStyle.backgroundColor != null) {
-            onBackgroundColor(divStyle.backgroundColor);
-          }
-
-          // Promote padding/margin to page level
-          final divPadding = divStyle.getEffectivePadding();
-          final divMargin = divStyle.getEffectiveMargin();
-          if (divPadding != null || divMargin != null) {
-            final combined = pw.EdgeInsets.only(
-              top: (divMargin?.top ?? 0) + (divPadding?.top ?? 0),
-              right: (divMargin?.right ?? 0) + (divPadding?.right ?? 0),
-              bottom: (divMargin?.bottom ?? 0) + (divPadding?.bottom ?? 0),
-              left: (divMargin?.left ?? 0) + (divPadding?.left ?? 0),
-            );
-            onMarginPadding(combined);
-          }
-
-          // Parse this div's children as individual widgets (flatten)
-          // This is the key fix: instead of wrapping in Column, add each child separately
-          final childWidgets = await _parseFlatChildren(node, divStyle);
-          widgets.addAll(childWidgets);
-        } else {
-          // Regular element - parse normally
-          final widget = await _parseElement(node, bodyStyle);
-          if (widget != null) {
-            widgets.add(widget);
-          }
+        final widget = await _parseElement(node, bodyStyle);
+        if (widget != null) {
+          widgets.add(widget);
         }
       } else if (node is dom.Text) {
         final text = node.text.trim();
         if (text.isNotEmpty) {
           widgets.add(pw.Text(text, style: bodyStyle.toTextStyle()));
         }
-      }
-    }
-
-    return widgets;
-  }
-
-  /// Parses children of a flattened container, returning only element children.
-  /// This skips text nodes to avoid creating many empty/whitespace widgets.
-  Future<List<pw.Widget>> _parseFlatChildren(
-    dom.Element parent,
-    CssStyle parentStyle,
-  ) async {
-    final widgets = <pw.Widget>[];
-
-    for (final child in parent.children) {
-      // Only parse element children, skip text nodes
-      final widget = await _parseElement(child, parentStyle);
-      if (widget != null) {
-        widgets.add(widget);
       }
     }
 
@@ -578,30 +543,6 @@ class HtmlParser {
       );
     }
 
-    // If this div has a background color or border, it will be wrapped in a Container.
-    // In the pdf package, Containers with decorations do not split across pages by default.
-    // To allow splitting, we need to avoid the Container wrapper if possible,
-    // or use a widget that supports splitting with background (which is limited in pdf package).
-    //
-    // However, for the specific case of a "chat container" that wraps the whole content,
-    // having a background color on it forces the entire chat to try to fit on one page.
-    //
-    // We can try to detect this case: if the div contains many children (like chat messages),
-    // and has a background color, we might want to apply the background to the children instead?
-    // Or just accept that the pdf package has this limitation.
-    //
-    // A better approach for the library is to respect the CSS. If the user puts a background
-    // on a wrapper div, they get a non-splitting container.
-    //
-    // But to be "web compatible", we should try to handle large containers better.
-    // The `pdf` package's `Container` simply doesn't split if it has a box decoration.
-    //
-    // WORKAROUND: If the style has a background color but no specific dimensions (height),
-    // and it has multiple children, we could try to wrap the content in a specialized
-    // widget or just warn.
-    //
-    // For now, we will stick to the standard behavior but ensure we don't add unnecessary wrappers.
-
     return _wrapWithMarginPadding(
       _wrapWithDecoration(content, style),
       style,
@@ -866,36 +807,50 @@ class HtmlParser {
   }
 
   pw.Widget _wrapWithDecoration(pw.Widget child, CssStyle style) {
-    if (style.backgroundColor == null &&
-        style.borderColor == null &&
-        style.padding == null &&
-        style.paddingTop == null &&
-        style.paddingRight == null &&
-        style.paddingBottom == null &&
-        style.paddingLeft == null) {
+    final hasBackground = style.backgroundColor != null;
+    final hasBorder = style.borderColor != null || style.borderLeftColor != null;
+    final hasPadding = style.padding != null ||
+        style.paddingTop != null ||
+        style.paddingRight != null ||
+        style.paddingBottom != null ||
+        style.paddingLeft != null;
+
+    if (!hasBackground && !hasBorder && !hasPadding) {
       return child;
     }
 
-    return pw.Container(
-      padding: style.getEffectivePadding(),
-      decoration: pw.BoxDecoration(
-        color: style.backgroundColor,
-        border: style.borderColor != null
-            ? pw.Border.all(
-                color: style.borderColor!,
-                width: style.borderWidth ?? 1,
-              )
-            : style.borderLeftColor != null
-                ? pw.Border(
-                    left: pw.BorderSide(
-                      color: style.borderLeftColor!,
-                      width: style.borderLeftWidth ?? 4,
-                    ),
-                  )
-                : null,
-      ),
-      child: child,
-    );
+    // Apply padding first (Padding widget can split across pages)
+    pw.Widget result = child;
+    final effectivePadding = style.getEffectivePadding();
+    if (effectivePadding != null) {
+      result = pw.Padding(padding: effectivePadding, child: result);
+    }
+
+    // Only wrap in Container if we need decoration (background or border)
+    // Note: Container with BoxDecoration cannot split across pages
+    if (hasBackground || hasBorder) {
+      result = pw.Container(
+        decoration: pw.BoxDecoration(
+          color: style.backgroundColor,
+          border: style.borderColor != null
+              ? pw.Border.all(
+                  color: style.borderColor!,
+                  width: style.borderWidth ?? 1,
+                )
+              : style.borderLeftColor != null
+                  ? pw.Border(
+                      left: pw.BorderSide(
+                        color: style.borderLeftColor!,
+                        width: style.borderLeftWidth ?? 4,
+                      ),
+                    )
+                  : null,
+        ),
+        child: result,
+      );
+    }
+
+    return result;
   }
 
   pw.Widget _wrapWithMarginPadding(

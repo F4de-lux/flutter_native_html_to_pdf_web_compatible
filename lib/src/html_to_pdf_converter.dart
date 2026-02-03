@@ -50,26 +50,36 @@ class HtmlToPdfConverter {
         : PdfPageFormat.a4;
 
     // Use body margin from CSS, or default margin if not specified
-    final pageMargin = parseResult.bodyMargin ?? const pw.EdgeInsets.all(24);
+    // Ensure minimum margin of 20 for better readability
+    var pageMargin = parseResult.bodyMargin ?? const pw.EdgeInsets.all(24);
+    if (pageMargin.top < 20 ||
+        pageMargin.right < 20 ||
+        pageMargin.bottom < 20 ||
+        pageMargin.left < 20) {
+      pageMargin = pw.EdgeInsets.only(
+        top: pageMargin.top < 20 ? 20 : pageMargin.top,
+        right: pageMargin.right < 20 ? 20 : pageMargin.right,
+        bottom: pageMargin.bottom < 20 ? 20 : pageMargin.bottom,
+        left: pageMargin.left < 20 ? 20 : pageMargin.left,
+      );
+    }
 
+    // Create page theme with background color if specified
     final pageTheme = pw.PageTheme(
       pageFormat: pdfPageFormat,
       margin: pageMargin,
-      buildBackground: (context) {
-        if (parseResult.bodyBackgroundColor != null) {
-          return pw.FullPage(
-            ignoreMargins: true,
-            child: pw.Container(color: parseResult.bodyBackgroundColor),
-          );
-        }
-        return pw.SizedBox();
-      },
+      buildBackground: parseResult.bodyBackgroundColor != null
+          ? (context) => pw.FullPage(
+                ignoreMargins: true,
+                child: pw.Container(color: parseResult.bodyBackgroundColor),
+              )
+          : null,
     );
 
     document.addPage(
       pw.MultiPage(
         pageTheme: pageTheme,
-        maxPages: 1000,
+        maxPages: 200,
         build: (context) => parseResult.widgets,
       ),
     );
