@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_native_html_to_pdf/flutter_native_html_to_pdf.dart';
 import 'package:test/test.dart';
 
@@ -11,10 +9,10 @@ void main() {
       converter = HtmlToPdfConverter();
     });
 
-    test('convertHtmlToPdfBytes returns valid PDF bytes', () async {
+    test('convert returns valid PDF bytes', () async {
       const html = '<html><body><h1>Test</h1></body></html>';
 
-      final bytes = await converter.convertHtmlToPdfBytes(html: html);
+      final bytes = await converter.convert(html: html);
 
       expect(bytes, isNotEmpty);
       // PDF files start with %PDF
@@ -24,10 +22,10 @@ void main() {
       expect(bytes[3], equals(0x46)); // F
     });
 
-    test('convertHtmlToPdfBytes with custom page size', () async {
+    test('convert with custom page size', () async {
       const html = '<html><body><h1>Test</h1></body></html>';
 
-      final bytes = await converter.convertHtmlToPdfBytes(
+      final bytes = await converter.convert(
         html: html,
         pageSize: PdfPageSize.letter,
       );
@@ -35,31 +33,7 @@ void main() {
       expect(bytes, isNotEmpty);
     });
 
-    test('convertHtmlToPdf creates file', () async {
-      const html = '<html><body><h1>Test</h1></body></html>';
-      final tempDir = Directory.systemTemp.createTempSync('pdf_test_');
-
-      try {
-        final file = await converter.convertHtmlToPdf(
-          html: html,
-          targetDirectory: tempDir.path,
-          targetName: 'test_document',
-        );
-
-        expect(file.existsSync(), isTrue);
-        expect(file.path, endsWith('.pdf'));
-
-        final bytes = await file.readAsBytes();
-        expect(bytes[0], equals(0x25)); // %
-        expect(bytes[1], equals(0x50)); // P
-        expect(bytes[2], equals(0x44)); // D
-        expect(bytes[3], equals(0x46)); // F
-      } finally {
-        tempDir.deleteSync(recursive: true);
-      }
-    });
-
-    test('convertHtmlToPdfBytes with CSS styles', () async {
+    test('convert with CSS styles', () async {
       const html = '''
 <!DOCTYPE html>
 <html>
@@ -84,8 +58,8 @@ void main() {
 </html>
 ''';
 
-      final bytes = await converter.convertHtmlToPdfBytes(html: html);
-      
+      final bytes = await converter.convert(html: html);
+
       expect(bytes, isNotEmpty);
       // Verify it's a valid PDF
       expect(bytes[0], equals(0x25)); // %
@@ -94,7 +68,7 @@ void main() {
       expect(bytes[3], equals(0x46)); // F
     });
 
-    test('convertHtmlToPdfBytes with various HTML elements', () async {
+    test('convert with various HTML elements', () async {
       const html = '''
 <!DOCTYPE html>
 <html>
@@ -117,8 +91,8 @@ void main() {
 </html>
 ''';
 
-      final bytes = await converter.convertHtmlToPdfBytes(html: html);
-      
+      final bytes = await converter.convert(html: html);
+
       expect(bytes, isNotEmpty);
       expect(bytes[0], equals(0x25)); // %
     });
@@ -192,5 +166,11 @@ void main() {
       expect(size1, isNot(equals(size3)));
     });
   });
-}
 
+  group('isWebPlatform', () {
+    test('returns false on non-web platforms', () {
+      // This test runs on native platforms
+      expect(isWebPlatform, isFalse);
+    });
+  });
+}

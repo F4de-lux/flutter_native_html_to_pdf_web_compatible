@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
@@ -9,42 +8,28 @@ import 'pdf_page_size.dart';
 
 /// A pure Dart implementation for converting HTML to PDF.
 ///
-/// This class provides methods to convert HTML content to PDF files or bytes
-/// without requiring any native platform code or external conversion packages.
+/// This class provides a simple method to convert HTML content to PDF bytes
+/// without requiring any native platform code. Works on all platforms
+/// including web (JavaScript and WASM).
+///
+/// ## Usage
+///
+/// ```dart
+/// final converter = HtmlToPdfConverter();
+///
+/// // Convert HTML to PDF bytes
+/// final Uint8List pdfBytes = await converter.convert(
+///   html: '<h1>Hello World</h1>',
+/// );
+///
+/// // Do whatever you want with the bytes:
+/// // - Save to file (on native platforms)
+/// // - Download in browser (on web)
+/// // - Upload to server
+/// // - etc.
+/// ```
 class HtmlToPdfConverter {
   final HtmlParser _parser = HtmlParser();
-
-  /// Converts HTML content to a PDF file.
-  ///
-  /// [html] - The HTML string to convert to PDF.
-  /// [targetDirectory] - The directory path where the PDF file will be saved.
-  /// [targetName] - The name of the PDF file (without extension).
-  /// [pageSize] - Optional page size configuration. Defaults to A4.
-  ///
-  /// Returns a [File] object pointing to the generated PDF file.
-  /// Throws an exception if the conversion fails.
-  Future<File> convertHtmlToPdf({
-    required String html,
-    required String targetDirectory,
-    required String targetName,
-    PdfPageSize? pageSize,
-  }) async {
-    final pdfBytes = await convertHtmlToPdfBytes(
-      html: html,
-      pageSize: pageSize,
-    );
-
-    final filePath = '$targetDirectory/$targetName.pdf';
-    final file = File(filePath);
-
-    // Ensure directory exists
-    final directory = Directory(targetDirectory);
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
-    }
-
-    return await file.writeAsBytes(pdfBytes);
-  }
 
   /// Converts HTML content to PDF bytes.
   ///
@@ -52,8 +37,7 @@ class HtmlToPdfConverter {
   /// [pageSize] - Optional page size configuration. Defaults to A4.
   ///
   /// Returns a [Uint8List] containing the PDF data.
-  /// Throws an exception if the conversion fails.
-  Future<Uint8List> convertHtmlToPdfBytes({
+  Future<Uint8List> convert({
     required String html,
     PdfPageSize? pageSize,
   }) async {
