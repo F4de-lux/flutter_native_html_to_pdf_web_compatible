@@ -69,7 +69,7 @@ class HtmlToPdfConverter {
     document.addPage(
       pw.MultiPage(
         pageTheme: pageTheme,
-        maxPages: 200,
+        maxPages: 1000,
         build: (context) => parseResult.widgets,
       ),
     );

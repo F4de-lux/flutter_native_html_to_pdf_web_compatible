@@ -103,8 +103,9 @@ class HtmlParser {
   }
 
   /// Parses body content with special handling for wrapper divs.
-  /// Wrapper divs (divs with many children that act as containers) are flattened
-  /// so their children become individual widgets for proper MultiPage pagination.
+  /// The FIRST wrapper div (div with many children) is flattened so its children
+  /// become individual widgets for proper MultiPage pagination.
+  /// Other elements are parsed normally.
   Future<List<pw.Widget>> _parseBodyContentFlattened(
     dom.Element body,
     CssStyle bodyStyle,
@@ -112,14 +113,18 @@ class HtmlParser {
     void Function(pw.EdgeInsets?) onMarginPadding,
   ) async {
     final List<pw.Widget> widgets = [];
+    bool hasFlattened = false; // Only flatten the first wrapper
 
     for (final node in body.nodes) {
       if (node is dom.Element) {
         final tagName = node.localName?.toLowerCase() ?? '';
 
         // Check if this is a wrapper div that should be flattened
-        // A wrapper div is a div with multiple children (like a chat container)
-        if (tagName == 'div' && node.children.length > 1) {
+        // Only flatten the FIRST wrapper div (typically the main content container)
+        // A wrapper div is a div with many children (like a chat container with messages)
+        if (!hasFlattened && tagName == 'div' && node.children.length >= 3) {
+          // 3+ children suggests it's a container of multiple items
+          hasFlattened = true;
           final divStyle = _getComputedStyle(node, bodyStyle);
 
           // Promote background color to page level
@@ -142,7 +147,7 @@ class HtmlParser {
 
           // Parse this div's children as individual widgets (flatten)
           // This is the key fix: instead of wrapping in Column, add each child separately
-          final childWidgets = await _parseNodes(node.nodes, divStyle);
+          final childWidgets = await _parseFlatChildren(node, divStyle);
           widgets.addAll(childWidgets);
         } else {
           // Regular element - parse normally
@@ -156,6 +161,25 @@ class HtmlParser {
         if (text.isNotEmpty) {
           widgets.add(pw.Text(text, style: bodyStyle.toTextStyle()));
         }
+      }
+    }
+
+    return widgets;
+  }
+
+  /// Parses children of a flattened container, returning only element children.
+  /// This skips text nodes to avoid creating many empty/whitespace widgets.
+  Future<List<pw.Widget>> _parseFlatChildren(
+    dom.Element parent,
+    CssStyle parentStyle,
+  ) async {
+    final widgets = <pw.Widget>[];
+
+    for (final child in parent.children) {
+      // Only parse element children, skip text nodes
+      final widget = await _parseElement(child, parentStyle);
+      if (widget != null) {
+        widgets.add(widget);
       }
     }
 
