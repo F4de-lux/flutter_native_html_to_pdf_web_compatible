@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import 'font_manager.dart';
+
 /// Result of parsing HTML, including widgets and page-level styles.
 class HtmlParseResult {
   /// The list of PDF widgets representing the HTML content.
@@ -42,6 +44,9 @@ class HtmlParser {
 
   /// Parses HTML string and returns parse result with widgets and body styles.
   Future<HtmlParseResult> parseWithStyles(String html) async {
+    // Initialize fonts (downloads Open Sans from Google Fonts on first call)
+    await FontManager.instance.initialize();
+
     final document = html_parser.parse(html);
 
     // Extract CSS from <style> tags
@@ -165,7 +170,8 @@ class HtmlParser {
             value == 'italic' ? pw.FontStyle.italic : pw.FontStyle.normal;
         break;
       case 'font-family':
-        style.fontFamily = value.replaceAll(RegExp(r'''['"]'''), '').split(',').first.trim();
+        style.fontFamily =
+            value.replaceAll(RegExp(r'''['"]'''), '').split(',').first.trim();
         break;
       case 'text-decoration':
         if (value.contains('underline')) {
@@ -361,7 +367,9 @@ class HtmlParser {
         // Apply body margin/padding as container padding
         final bodyMargin = style.getEffectiveMargin() ?? style.margin;
         final bodyPadding = style.getEffectivePadding();
-        if (bodyMargin != null || bodyPadding != null || style.backgroundColor != null) {
+        if (bodyMargin != null ||
+            bodyPadding != null ||
+            style.backgroundColor != null) {
           return pw.Container(
             padding: bodyMargin ?? bodyPadding,
             decoration: style.backgroundColor != null
@@ -392,7 +400,8 @@ class HtmlParser {
     }
   }
 
-  pw.Widget _buildHeading(dom.Element element, CssStyle style, double defaultSize) {
+  pw.Widget _buildHeading(
+      dom.Element element, CssStyle style, double defaultSize) {
     style.fontSize ??= defaultSize;
     style.fontWeight ??= pw.FontWeight.bold;
 
@@ -449,7 +458,8 @@ class HtmlParser {
     return pw.Wrap(children: children);
   }
 
-  Future<pw.Widget> _buildInlineText(dom.Element element, CssStyle style) async {
+  Future<pw.Widget> _buildInlineText(
+      dom.Element element, CssStyle style) async {
     return pw.Text(element.text.trim(), style: style.toTextStyle());
   }
 
@@ -488,7 +498,7 @@ class HtmlParser {
             child: pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('• ', style: itemStyle.toTextStyle()),
+                pw.Text('- ', style: itemStyle.toTextStyle()),
                 pw.Expanded(
                   child: content.length == 1
                       ? content.first
@@ -677,7 +687,7 @@ class HtmlParser {
   }
 
   Future<pw.Widget> _buildCode(dom.Element element, CssStyle style) async {
-    style.fontFamily = 'Courier';
+    style.fontSize ??= 10;
 
     return pw.Container(
       padding: const pw.EdgeInsets.all(8),
@@ -686,11 +696,7 @@ class HtmlParser {
       ),
       child: pw.Text(
         element.text.trim(),
-        style: pw.TextStyle(
-          font: pw.Font.courier(),
-          fontSize: style.fontSize ?? 10,
-          color: style.color,
-        ),
+        style: style.toTextStyle(),
       ),
     );
   }
@@ -811,14 +817,15 @@ class HtmlParser {
     }
 
     // RGB/RGBA colors
-    final rgbMatch =
-        RegExp(r'rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)')
-            .firstMatch(color);
+    final rgbMatch = RegExp(
+            r'rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)')
+        .firstMatch(color);
     if (rgbMatch != null) {
       final r = int.parse(rgbMatch.group(1)!);
       final g = int.parse(rgbMatch.group(2)!);
       final b = int.parse(rgbMatch.group(3)!);
-      final a = rgbMatch.group(4) != null ? double.parse(rgbMatch.group(4)!) : 1.0;
+      final a =
+          rgbMatch.group(4) != null ? double.parse(rgbMatch.group(4)!) : 1.0;
       return PdfColor(r / 255, g / 255, b / 255, a);
     }
 
@@ -869,7 +876,11 @@ class HtmlParser {
 
   pw.FontWeight _parseFontWeight(String value) {
     final v = value.trim().toLowerCase();
-    if (v == 'bold' || v == 'bolder' || v == '700' || v == '800' || v == '900') {
+    if (v == 'bold' ||
+        v == 'bolder' ||
+        v == '700' ||
+        v == '800' ||
+        v == '900') {
       return pw.FontWeight.bold;
     }
     return pw.FontWeight.normal;
@@ -1038,7 +1049,14 @@ class CssStyle {
 
   /// Converts to PDF TextStyle.
   pw.TextStyle toTextStyle() {
+    final fm = FontManager.instance;
+    final font = fm.getFont(weight: fontWeight, style: fontStyle);
+
     return pw.TextStyle(
+      font: font,
+      fontBold: fm.bold,
+      fontItalic: fm.italic,
+      fontBoldItalic: fm.boldItalic,
       color: color,
       fontSize: fontSize,
       fontWeight: fontWeight,

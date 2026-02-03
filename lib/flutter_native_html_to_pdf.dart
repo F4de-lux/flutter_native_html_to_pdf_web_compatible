@@ -30,3 +30,4 @@ export 'src/html_to_pdf_converter.dart' show HtmlToPdfConverter;
 export 'src/pdf_page_size.dart';
 export 'src/html_parser.dart' show HtmlParseResult, HtmlParser, CssStyle;
 export 'src/web_download.dart' show downloadPdf, previewPdf, isWebPlatform;
+export 'src/font_manager.dart' show FontManager;

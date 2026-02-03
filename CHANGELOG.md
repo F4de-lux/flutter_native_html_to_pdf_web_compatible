@@ -11,6 +11,9 @@
 - **Full web support**: Works on web platform (JavaScript and WASM)
 - **Web download helpers**: Added `downloadPdf()` and `previewPdf()` for web
 - **Platform detection**: Added `isWebPlatform` getter
+- **Open Sans font**: Automatically downloads and caches Open Sans from Google Fonts
+- **Full Unicode support**: Bullet points, curly quotes, and all Unicode characters now render correctly
+- **FontManager**: Exposed for optional pre-initialization at app startup
 
 ### Migration from 2.x
 ```dart

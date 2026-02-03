@@ -102,6 +102,23 @@ if (isWebPlatform) {
 - `padding`, `margin` (including individual sides)
 - `border`, `border-color`, `border-width`
 
+## Fonts
+
+The library automatically downloads and caches **Open Sans** from Google Fonts on first use. This provides full Unicode support including special characters like bullet points (•) and curly quotes.
+
+For faster first conversion, you can pre-initialize fonts at app startup:
+
+```dart
+import 'package:flutter_native_html_to_pdf/flutter_native_html_to_pdf.dart';
+
+void main() async {
+  // Pre-load fonts (optional - happens automatically on first convert)
+  await FontManager.instance.initialize();
+  
+  runApp(MyApp());
+}
+```
+
 ## Example
 
 See the [example](example/) folder for a complete Flutter app demonstrating usage on all platforms.
