@@ -52,10 +52,23 @@ class HtmlToPdfConverter {
     // Use body margin from CSS, or default margin if not specified
     final pageMargin = parseResult.bodyMargin ?? const pw.EdgeInsets.all(24);
 
+    final pageTheme = pw.PageTheme(
+      pageFormat: pdfPageFormat,
+      margin: pageMargin,
+      buildBackground: (context) {
+        if (parseResult.bodyBackgroundColor != null) {
+          return pw.FullPage(
+            ignoreMargins: true,
+            child: pw.Container(color: parseResult.bodyBackgroundColor),
+          );
+        }
+        return pw.SizedBox();
+      },
+    );
+
     document.addPage(
       pw.MultiPage(
-        pageFormat: pdfPageFormat,
-        margin: pageMargin,
+        pageTheme: pageTheme,
         maxPages: 200,
         build: (context) => parseResult.widgets,
       ),

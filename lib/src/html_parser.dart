@@ -61,10 +61,35 @@ class HtmlParser {
     final bodyStyle = _getComputedStyle(body, CssStyle());
     final bodyMargin = bodyStyle.getEffectiveMargin();
     final bodyPadding = bodyStyle.getEffectivePadding();
-    final bodyBackgroundColor = bodyStyle.backgroundColor;
+    PdfColor? bodyBackgroundColor = bodyStyle.backgroundColor;
 
     // Parse body children
-    final widgets = await _parseBodyContent(body, bodyStyle);
+    var widgets = await _parseBodyContent(body, bodyStyle);
+
+    // FIX: Check for root-level container with background color.
+    // If we have a single wrapper div with a background color, the pdf package's Container
+    // will refuse to split it across pages.
+    // We fix this by promoting the background color to the page level and unwrapping the container.
+    if (widgets.length == 1) {
+      final widget = widgets.first;
+      if (widget is pw.Container && widget.decoration is pw.BoxDecoration) {
+        final decoration = widget.decoration as pw.BoxDecoration;
+        // If container has background color and body doesn't
+        if (decoration.color != null && bodyBackgroundColor == null) {
+          bodyBackgroundColor = decoration.color;
+
+          // If container has padding, we must preserve it using a Padding widget.
+          // Padding widgets split fine across pages.
+          if (widget.padding != null) {
+            widgets = [
+              pw.Padding(padding: widget.padding!, child: widget.child)
+            ];
+          } else {
+            widgets = widget.child != null ? [widget.child!] : [];
+          }
+        }
+      }
+    }
 
     return HtmlParseResult(
       widgets: widgets,
@@ -325,6 +350,11 @@ class HtmlParser {
         widget = await _buildParagraph(element, style);
         break;
       case 'div':
+        // Check if this is a chat container (based on class or just heuristics)
+        // If a div has a background color, we might want to allow it to span pages
+        // by NOT wrapping it in a Container if it's the main wrapper.
+        // However, standard PDF behavior for Container with decoration is to not split well.
+        // For now, we'll process it normally, but the user should be aware of PDF limitations.
         widget = await _buildDiv(element, style);
         break;
       case 'span':
@@ -482,6 +512,30 @@ class HtmlParser {
         children: children,
       );
     }
+
+    // If this div has a background color or border, it will be wrapped in a Container.
+    // In the pdf package, Containers with decorations do not split across pages by default.
+    // To allow splitting, we need to avoid the Container wrapper if possible,
+    // or use a widget that supports splitting with background (which is limited in pdf package).
+    //
+    // However, for the specific case of a "chat container" that wraps the whole content,
+    // having a background color on it forces the entire chat to try to fit on one page.
+    //
+    // We can try to detect this case: if the div contains many children (like chat messages),
+    // and has a background color, we might want to apply the background to the children instead?
+    // Or just accept that the pdf package has this limitation.
+    //
+    // A better approach for the library is to respect the CSS. If the user puts a background
+    // on a wrapper div, they get a non-splitting container.
+    //
+    // But to be "web compatible", we should try to handle large containers better.
+    // The `pdf` package's `Container` simply doesn't split if it has a box decoration.
+    //
+    // WORKAROUND: If the style has a background color but no specific dimensions (height),
+    // and it has multiple children, we could try to wrap the content in a specialized
+    // widget or just warn.
+    //
+    // For now, we will stick to the standard behavior but ensure we don't add unnecessary wrappers.
 
     return _wrapWithMarginPadding(
       _wrapWithDecoration(content, style),
