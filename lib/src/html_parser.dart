@@ -807,50 +807,37 @@ class HtmlParser {
   }
 
   pw.Widget _wrapWithDecoration(pw.Widget child, CssStyle style) {
-    final hasBackground = style.backgroundColor != null;
-    final hasBorder = style.borderColor != null || style.borderLeftColor != null;
-    final hasPadding = style.padding != null ||
-        style.paddingTop != null ||
-        style.paddingRight != null ||
-        style.paddingBottom != null ||
-        style.paddingLeft != null;
-
-    if (!hasBackground && !hasBorder && !hasPadding) {
+    if (style.backgroundColor == null &&
+        style.borderColor == null &&
+        style.borderLeftColor == null &&
+        style.padding == null &&
+        style.paddingTop == null &&
+        style.paddingRight == null &&
+        style.paddingBottom == null &&
+        style.paddingLeft == null) {
       return child;
     }
 
-    // Apply padding first (Padding widget can split across pages)
-    pw.Widget result = child;
-    final effectivePadding = style.getEffectivePadding();
-    if (effectivePadding != null) {
-      result = pw.Padding(padding: effectivePadding, child: result);
-    }
-
-    // Only wrap in Container if we need decoration (background or border)
-    // Note: Container with BoxDecoration cannot split across pages
-    if (hasBackground || hasBorder) {
-      result = pw.Container(
-        decoration: pw.BoxDecoration(
-          color: style.backgroundColor,
-          border: style.borderColor != null
-              ? pw.Border.all(
-                  color: style.borderColor!,
-                  width: style.borderWidth ?? 1,
-                )
-              : style.borderLeftColor != null
-                  ? pw.Border(
-                      left: pw.BorderSide(
-                        color: style.borderLeftColor!,
-                        width: style.borderLeftWidth ?? 4,
-                      ),
-                    )
-                  : null,
-        ),
-        child: result,
-      );
-    }
-
-    return result;
+    return pw.Container(
+      padding: style.getEffectivePadding(),
+      decoration: pw.BoxDecoration(
+        color: style.backgroundColor,
+        border: style.borderColor != null
+            ? pw.Border.all(
+                color: style.borderColor!,
+                width: style.borderWidth ?? 1,
+              )
+            : style.borderLeftColor != null
+                ? pw.Border(
+                    left: pw.BorderSide(
+                      color: style.borderLeftColor!,
+                      width: style.borderLeftWidth ?? 4,
+                    ),
+                  )
+                : null,
+      ),
+      child: child,
+    );
   }
 
   pw.Widget _wrapWithMarginPadding(
